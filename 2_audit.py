@@ -12,25 +12,20 @@ import fives_shared as fs
 
 DiagramArray = fs.DiagramArray
 
-TopoVector = typing.Annotated[np.ndarray, "3"]
-GeoVector = typing.Annotated[np.ndarray, "7"]
-CombinedVector = typing.Annotated[np.ndarray, "16"]
-FeatureMatrix = typing.Annotated[np.ndarray, "N,16"]
+CombinedVector = typing.Annotated[np.ndarray, "13"]
+FeatureMatrix = typing.Annotated[np.ndarray, "N,13"]
 LabelArray = typing.Annotated[np.ndarray, "N"]
 
-CacheItem = typing.Tuple[
-    typing.Tuple[DiagramArray, DiagramArray, DiagramArray], np.ndarray, int
+CacheItem = tuple[
+    tuple[DiagramArray, DiagramArray, DiagramArray], np.ndarray, int
 ]
 
 FEATURE_NAMES: typing.Sequence[str] = (
-    "H0 Count",
-    "H0 Max",
+    "H0 Top5",
     "H0 Total",
-    "H1 Count",
-    "H1 Max",
+    "H1 Top5",
     "H1 Total",
-    "HS Count",
-    "HS Max",
+    "HS Top5",
     "HS Total",
     "Hu 1",
     "Hu 2",
@@ -44,8 +39,8 @@ FEATURE_NAMES: typing.Sequence[str] = (
 
 def build_feature_matrix(
     cache_path: pathlib.Path,
-) -> typing.Tuple[FeatureMatrix, LabelArray]:
-    """Build a 16D feature matrix and labels.
+) -> tuple[FeatureMatrix, LabelArray]:
+    """Build a 13D feature matrix and labels.
 
     Parameters
     ----------
@@ -58,14 +53,12 @@ def build_feature_matrix(
         Feature matrix and label array.
 
     """
-    items = typing.cast(
-        typing.List[CacheItem], fs.read_cache_stream(cache_path)
-    )
+    items = typing.cast(list[CacheItem], fs.read_cache_stream(cache_path))
     if not items:
         raise ValueError("Empty cache stream.")
 
-    rows: typing.List[CombinedVector] = []
-    labels: typing.List[int] = []
+    rows: list[CombinedVector] = []
+    labels: list[int] = []
 
     for diagrams, geom_vec, label in items:
         d0_sub, d1_sub, *rest = diagrams
@@ -85,7 +78,7 @@ def build_feature_matrix(
 
         geo_vec = np.asarray(geom_vec, dtype=np.float32).reshape(-1)
         if geo_vec.shape[0] != 7:
-            raise ValueError("Geometric vector length mismatch.")
+            raise ValueError("Hu vector length mismatch.")
 
         combined_vec = np.concatenate((topo_vec, geo_vec)).astype(np.float32)
         rows.append(combined_vec)
@@ -101,7 +94,7 @@ def compute_feature_statistics(
     features: FeatureMatrix,
     labels: LabelArray,
     feature_names: typing.Sequence[str],
-) -> typing.List[typing.Tuple[str, float, float, float, float]]:
+) -> list[tuple[str, float, float, float, float]]:
     """Compute per-feature group statistics.
 
     Parameters
@@ -128,7 +121,7 @@ def compute_feature_statistics(
     healthy = features[healthy_mask]
     diabetic = features[diabetic_mask]
 
-    rows: typing.List[typing.Tuple[str, float, float, float, float]] = []
+    rows: list[tuple[str, float, float, float, float]] = []
 
     for idx, name in enumerate(feature_names):
         healthy_vals = healthy[:, idx]
@@ -164,7 +157,7 @@ def compute_feature_statistics(
 
 
 def print_markdown_table(
-    rows: typing.Sequence[typing.Tuple[str, float, float, float, float]]
+    rows: typing.Sequence[tuple[str, float, float, float, float]]
 ) -> None:
     """Print a markdown table of feature statistics.
 
@@ -200,11 +193,12 @@ def main() -> None:
     None
 
     """
+    fs.seed_everything()
     cache_path = fs.cache_path("train", "standard", 0)
     if not cache_path.exists():
         raise FileNotFoundError(f"Missing cache file: {cache_path}")
 
-    run_id = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    run_id = datetime.datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%SZ")
 
     features, labels = build_feature_matrix(cache_path)
     rows = compute_feature_statistics(features, labels, FEATURE_NAMES)
