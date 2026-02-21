@@ -2,7 +2,7 @@
 
 This repository contains the data processing, feature extraction, and evaluation pipeline for evaluating the stability of Topological Data Analysis (TDA) on discrete sensor grids.
 
-Using Diabetic Retinopathy screening as the clinical testbed, the pipeline benchmarks a 6D topological summary ($\textbf{H}_0\textbf{H}_1\textbf{H}_S$) against a 7D geometric baseline (Hu Moments) across 116 distinct perturbation regimes. The framework empirically validates the **Orthogonality Hypothesis**: geometric invariants provide robust Mechanical Control (affine stability), while topological invariants provide robust Radiometric Control (illumination/quantisation stability).
+Using Diabetic Retinopathy screening as the clinical testbed, the pipeline benchmarks a 6D topological summary ($\textbf{H}_0\textbf{H}_1\textbf{H}_S$) against a 7D geometric baseline (Hu Moments) across 116 distinct perturbation regimes. The pipeline tests the **Orthogonality Hypothesis**: geometric invariants provide robust Mechanical Control (affine stability), while topological invariants provide robust Radiometric Control (illumination/quantisation stability).
 
 ## Requirements
 - Python 3.9+
@@ -16,7 +16,7 @@ Using Diabetic Retinopathy screening as the clinical testbed, the pipeline bench
 3. The target directory must be named exactly:
    `FIVES A Fundus Image Dataset for AI-based Vessel Segmentation/`
 
-*Note: The ingest script automatically filters out AMD and Glaucoma partitions to isolate the balanced Normal/DR cohort ($N=400$).*
+The ingest script filters out AMD and Glaucoma partitions to isolate the balanced Normal/DR cohort ($N=400$).
 
 ## Feature Definitions
 The pipeline enforces a coarse vectorisation strategy to guarantee Lipschitz continuity under the bottleneck distance:
@@ -45,7 +45,7 @@ Execute the entire feature extraction and stress-testing pipeline:
 
 The orchestrator executes the following stages sequentially:
 1. **`1_precompute.py`**: Builds cached persistence/geometry features for each perturbation. Bypasses existing caches. Non-resolution protocols use `clean_images.npy`. Resolution protocols read from `raw_images.npy` and apply CLAHE post-resize.
-2. **`2_audit.py`**: Conducts statistical feature separability audits (Welch's t-test, Cohen’s d) on the baseline training set.
+2. **`2_audit.py`**: Conducts statistical feature separability audits (Welch's t-test, Cohen’s d) on the baseline training set, then reports mean/median/mode lifetimes for H0/H1/HS.
 3. **`3_signal.py`**: Establishes baseline discriminative power via 5-fold cross-validation on the standard train cache.
 4. **`4_generalise.py`**: Evaluates baseline train/test generalisation.
 5. **`5_ablate.py`**: Executes the sensitivity audit. Runs Stratified 5-Fold CV on the pooled cohort ($N=400$) across all perturbations.
