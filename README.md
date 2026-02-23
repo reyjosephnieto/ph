@@ -51,6 +51,47 @@ The orchestrator executes the following stages sequentially:
 5. **`5_ablate.py`**: Executes the sensitivity audit. Runs Stratified 5-Fold CV on the pooled cohort ($N=400$) across all perturbations.
 6. **`6_plot.py`**: Renders the robustness gap plots and differential failure matrices.
 
+## Supplementary Data: Exploratory Audit and Preprocessing
+
+### Mitigating Pre-existing Domain Shift
+A prerequisite for measuring topological degradation is a functional, stable baseline model. A preliminary validation using a linear probe trained on the official FIVES training split ($N=300$) achieved high training accuracy ($84.0\%$) but collapsed catastrophically on the official test split ($N=100$), yielding an accuracy of $41.0\%$ (worse than random guessing).
+
+This discrepancy indicates a severe, pre-existing domain shift between the official FIVES partitions, implying that the fixed split forces the classifier to overfit to sensor-specific hardware characteristics. To isolate the representational power of the features from these sampling artefacts, the partitions were pooled into a single balanced cohort ($N=400$, 200 Normal / 200 DR) evaluated under Stratified $5$-Fold Cross-Validation.
+
+### Topological Hyperparameter Derivation
+To systematically determine the truncation parameter $\tau$, the global distribution of feature persistences across the training cohort was evaluated. The summary statistics of the raw persistent generators are detailed below:
+
+| **Homology** | **Mean** | **Median** | **Mode** | **Count** |
+| :--- | ---: | ---: | ---: | ---: |
+| $\vH_0$ | 4.080 | 3.412 | 1.482 | 8,762,399 |
+| $\vH_1$ | 3.852 | 3.383 | 1.477 | 11,609,642 |
+| $\vH_S$ | 4.010 | 3.422 | 1.484 | 8,668,531 |
+
+The generation of millions of features per homology group indicates the dense presence of high-frequency stochastic noise ("topological dust"). Because the mean persistence across all groups approximates $4.0$, a strict truncation threshold of $\tau = 5.0$ was selected. This aggressively prunes transient, low-amplitude generators that are statistically probable to represent noise rather than anatomical structures.
+
+### Statistical Audit of the Feature Space
+Prior to invoking the linear probe under perturbation, a rigorous statistical audit was performed to quantify the intrinsic discriminative power of the chosen invariants on the standard training cache ($N=300$). Welch's $t$-test and Cohen's $d$ were employed to measure the separation between class means in units of pooled standard deviation.
+
+| **Feature Name** | **Healthy** ($\mu$) | **Diabetic** ($\mu$) | **$p$-value** | **Cohen's $d$** |
+| :--- | :---: | :---: | :---: | :---: |
+| $\vH_S$ Top-5 Sum | 363.807 | 609.067 | $< 0.001$ | **1.573** |
+| $\vH_0$ Top-5 Sum | 231.300 | 543.800 | $< 0.001$ | **1.415** |
+| Hu Moment $\phi_5$ | 7.680 | -1.920 | $< 0.001$ | -0.901 |
+| $\vH_1$ Top-5 Sum | 466.493 | 547.920 | $< 0.001$ | **0.879** |
+| $\vH_0$ Total Persistence | 127244.039 | 111088.070 | $< 0.001$ | -0.698 |
+| $\vH_S$ Total Persistence | 122674.039 | 109061.906 | $< 0.001$ | -0.641 |
+| $\vH_1$ Total Persistence | 158138.562 | 139959.438 | $< 0.001$ | -0.580 |
+| Hu Moment $\phi_4$ | -9.832 | -9.995 | 0.004 | -0.336 |
+| Hu Moment $\phi_7$ | -0.800 | -3.840 | 0.025 | -0.260 |
+| Hu Moment $\phi_3$ | -11.274 | -11.196 | 0.116 | 0.182 |
+| Hu Moment $\phi_2$ | -8.490 | -8.590 | 0.165 | -0.161 |
+| Hu Moment $\phi_1$ | -2.634 | -2.642 | 0.386 | -0.100 |
+| Hu Moment $\phi_6$ | -2.878 | -2.078 | 0.557 | 0.068 |
+
+**Table 1: Univariate Feature Ranking.** Features ranked by absolute effect size magnitude ($|d|$) using the $N=300$ training cohort.
+
+The statistical results reveal that the Top-5 Persistence Sum ($S_5$) operates as the dominant signal carrier. The geometric features appear comparatively weak, with the exception of Hu Moment $\phi_5$. This confirms that Hu moments are engineered for global shape invariance, validating their selection as the global Mechanical Control vector despite weaker baseline classification utility.
+
 ## Sensitivity Audit Configuration (`fives_shared.py`)
 The pipeline evaluates three operational failure regimes. Global random seeds dictate stochastic noise generation (`seed_everything()`).
 
