@@ -103,6 +103,15 @@ python 5_ablate.py
 python 6_plot.py
 ```
 
+## Reproducibility, Safety, and Execution Notes
+- **Read-only source data:** The FIVES dataset directory is treated as input-only. The pipeline reads from `FIVES A Fundus Image Dataset for AI-based Vessel Segmentation/` and writes artefacts to `data/`, `cache_parts/`, `plot_results/`, `results_*.csv`, and `perf_log.jsonl`.
+- **Deterministic seed policy:** The codebase uses a global seed (`GLOBAL_SEED = 42` in `fives_shared.py`). Stochastic perturbations are generated from deterministic RNGs derived from this seed (`make_rng(...)`), and cross-validation splits use fixed `random_state` values.
+- **Stable processing order:** Cache items are emitted and consumed in a fixed sequence (ordered indices and sequential pickle streaming), which keeps downstream feature alignment consistent across reruns.
+- **Rerun behavior:** `1_precompute.py` skips cache files that already exist. To force full cache regeneration, clear `cache_parts/` first. `perf_log.jsonl` is append-only by default; remove it for a fresh run history.
+- **Single-entry execution:** `7_orchestrate.py` is the driver for steps `1 -> 6` and re-runs the full downstream analysis pipeline from staged inputs.
+- **Compute cost:** The precompute stage is the dominant bottleneck and can take multiple hours depending on hardware and worker count (`MAX_WORKERS` is chosen from CPU/memory constraints).
+- **Code availability:** Public implementation and scripts are available at <https://github.com/reyjosephnieto/persistent_homology/>.
+
 ## Supplementary Notes (Condensed)
 - **Why pooled cross-validation?** A quick train/test check on the official split showed severe drift (train accuracy $84.0\%$, test accuracy $41.0\%$), so stress evaluation is reported on pooled Normal/DR samples under stratified 5-fold CV.
 - **Why truncation $\tau = 5.0$?** Lifetime distributions for `H0/H1/HS` cluster near mean persistence $\approx 4.0$, so $\tau = 5.0$ removes low-amplitude topological dust.
