@@ -43,16 +43,42 @@ Feature vectors:
 Betti counts are intentionally excluded to avoid discontinuous count jumps under small perturbations.
 
 ## Pipeline Overview (0_ to 7_)
-| Step | Script | What it does | Main inputs | Main outputs |
-| :---: | :--- | :--- | :--- | :--- |
-| 0 | `0_ingest.py` | Builds staged tensors from FIVES, extracts green channel, applies CLAHE (clean branch), and stores train/test index maps. | `FIVES A Fundus Image Dataset for AI-based Vessel Segmentation/` | `data/clean_cohort.npz`, `data/clean_images.npy`, `data/clean_labels.npy`, `data/raw_images.npy`, `data/raw_paths.npy`, `data/train_indices.npy`, `data/test_indices.npy` |
-| 1 | `1_precompute.py` | Computes persistence diagrams (`H0/H1/HS`) and Hu vectors for each split, protocol, and perturbation level. | `data/*.npy`, protocol definitions in `fives_shared.py` | `cache_parts/{split}_{protocol}_{level}.pkl` |
-| 2 | `2_audit.py` | Runs baseline univariate audit (Welch's t-test + Cohen's d) and lifetime summaries on train/standard cache. | `cache_parts/train_standard_0.pkl` | Console markdown tables, `perf_log.jsonl` records (`2_audit`, `2_audit_lifetimes`) |
-| 3 | `3_signal.py` | Measures baseline predictive signal using stratified 5-fold CV for `H0`, `H1`, `HS`, `H0H1HS`, and `Hu`. | `cache_parts/train_standard_0.pkl` | `cache_parts/ablation_features.pkl`, `perf_log.jsonl` (`3_signal`) |
-| 4 | `4_generalise.py` | Trains on train/standard and evaluates on test/standard (topological `H0+H1` sanity check). | `cache_parts/train_standard_0.pkl`, `cache_parts/test_standard_0.pkl` | `perf_log.jsonl` (`4_generalise`) |
-| 5 | `5_ablate.py` | Main stress audit: fit on clean folds, evaluate on matched perturbed folds across all protocols/levels. | baseline + perturbed caches from step 1 | `results_mechanical.csv`, `results_radiometric.csv`, `results_failure.csv`, `stress_test_results_*.csv`, `perf_log.jsonl` (`5_ablate`) |
-| 6 | `6_plot.py` | Generates grouped panels, per-protocol plots, and orthogonality plots from latest `5_ablate` run. | `perf_log.jsonl` | `plot_results/*.png` |
-| 7 | `7_orchestrate.py` | Runs steps `1 -> 6` sequentially in a single command. | Python scripts and staged data | End-to-end artefacts above |
+| Step | Script | Purpose |
+| :---: | :--- | :--- |
+| 0 | `0_ingest.py` | Stage dataset arrays (green channel, CLAHE branch, split indices). |
+| 1 | `1_precompute.py` | Build persistence/Hu caches for every protocol level and split. |
+| 2 | `2_audit.py` | Baseline statistical audit (Welch's t-test, Cohen's d, lifetimes). |
+| 3 | `3_signal.py` | Baseline 5-fold CV signal check for `H0`, `H1`, `HS`, `H0H1HS`, `Hu`. |
+| 4 | `4_generalise.py` | Train on standard train split, evaluate on standard test split. |
+| 5 | `5_ablate.py` | Main stress audit across all perturbation protocols and levels. |
+| 6 | `6_plot.py` | Render robustness panels and orthogonality plots. |
+| 7 | `7_orchestrate.py` | Run steps `1 -> 6` in sequence. |
+
+Step I/O details:
+- `0_ingest.py`
+  Input: `FIVES A Fundus Image Dataset for AI-based Vessel Segmentation/`
+  Output: `data/clean_cohort.npz`, `data/clean_images.npy`, `data/clean_labels.npy`, `data/raw_images.npy`, `data/raw_paths.npy`, `data/train_indices.npy`, `data/test_indices.npy`
+- `1_precompute.py`
+  Input: `data/*.npy`, protocol ranges from `fives_shared.py`
+  Output: `cache_parts/{split}_{protocol}_{level}.pkl`
+- `2_audit.py`
+  Input: `cache_parts/train_standard_0.pkl`
+  Output: console tables and `perf_log.jsonl` entries (`2_audit`, `2_audit_lifetimes`)
+- `3_signal.py`
+  Input: `cache_parts/train_standard_0.pkl`
+  Output: `cache_parts/ablation_features.pkl` and `perf_log.jsonl` entries (`3_signal`)
+- `4_generalise.py`
+  Input: `cache_parts/train_standard_0.pkl`, `cache_parts/test_standard_0.pkl`
+  Output: `perf_log.jsonl` entries (`4_generalise`)
+- `5_ablate.py`
+  Input: baseline and perturbed caches from step 1
+  Output: `results_mechanical.csv`, `results_radiometric.csv`, `results_failure.csv`, `stress_test_results_*.csv`, and `perf_log.jsonl` entries (`5_ablate`)
+- `6_plot.py`
+  Input: `perf_log.jsonl`
+  Output: `plot_results/*.png`
+- `7_orchestrate.py`
+  Input: staged data and scripts
+  Output: end-to-end artefacts from steps `1 -> 6`
 
 ## Running the Pipeline
 Full run (recommended):
